@@ -121,24 +121,23 @@ model <- varImp(fit.Rf2)$importance
 varImpPlot(fit.Rf2$finalModel, main = "Predictors", sort = TRUE, pch = 21, col = 1, cex =1)
 ## Decision Tree
 tree <- rpart(classe ~ ., data= train.data3, method = "class")
-predictiontree <- predict(tree, test, type="class")
-rpart.plot(tree, under = TRUE)
+prp(tree)
 ```
-Files to Submit Assignment
+
+Prediction for submission:
 ```{r}
-pml_write_files = function(x){
+write.files = function(x){
   n = length(x)
   for(i in 1:n){
-    filename = paste0("./answers/problem_id_",i,".txt")
-    write.table(x[i],file=filename,quote=FALSE,row.names=FALSE,col.names=FALSE)
+    filename = paste0("./problem_id_", i, ".txt")
+    write.table(x[i], file = filename, quote = FALSE, row.names = FALSE, col.names = FALSE)
   }
 }
-
-pml_write_files(predictions)
+write.files(predict.Rf)
 ```
+
 Sources: 
 Ugulino, W.; Cardador, D.; Vega, K.; Velloso, E.; Milidiu, R.; Fuks, H. Wearable Computing: Accelerometers' Data Classification of Body Postures and Movements. Proceedings of 21st Brazilian Symposium on Artificial Intelligence. Advances in Artificial Intelligence - SBIA 2012. In: Lecture Notes in Computer Science. , pp. 52-61. Curitiba, PR: Springer Berlin / Heidelberg, 2012. ISBN 978-3-642-34458-9. DOI: 10.1007/978-3-642-34459-6_6.
 
 Read more: http://groupware.les.inf.puc-rio.br/har#ixzz3V12rBpJB
-
-End Notes: Codes were produced on RStudio version 0.98.994 with a Mac OS 10.9.4 
+ 
