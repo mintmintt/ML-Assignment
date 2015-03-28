@@ -57,7 +57,7 @@ test.data <- read.csv("./data/pml-testing.csv", row.names=1,  na.strings = "NA")
 dim(train.data)
 dim(test.data)
 ```
-Training data has 19622 observations with 159 variables. Testing data has 20 observations with 75 variables. 
+Training data has 19622 observations with 159 variables. Testing data has 20 observations with 159 variables. 
 Hence, start cleaning the data by removing 60% of NA values and remove columns with missing values. Identify the classe variable in the training set.
 
 Clean the Data by removing NA missing values
@@ -81,7 +81,7 @@ test.data2 <- test.data[, !(names(test.data) %in% test.delete)]
 dim(train.data2)
 dim(test.data2)
 ```
-Train data has 19622 observations and 54 variables. Test data has 20 observations and 53 varaibles.
+Train data2 has 19622 observations and 54 variables. Test data2 has 20 observations and 53 variables.
 Begin process for Cross Validation by doing a data split of train data 70% and validation data of 30%
 ```{r}
 inTrain <- createDataPartition(y=train.data2$classe, p= 0.70, list=FALSE)
@@ -90,7 +90,7 @@ test.data3 <- train.data2[-inTrain, ]
 dim(train.data3)
 dim(test.data3)
 ```
-Train data has 13737 observations and 54 variables. Test data has 5885 observations and 54 variables.
+Train data3 has 13737 observations and 54 variables. Test data has 5885 observations and 54 variables.
 
 Random Forest Modeling
 Conduct the predictive modeling with 5 fold cross-validation.
@@ -103,23 +103,22 @@ fit.Rf2
 ```
 Validate the data set and out-of-sample error.
 ```{r}
-predict.Rf <- predict(modelRf, test.data3)
+predict.Rf <- predict(fit.Rf2, test.data3)
 confusionMatrix(test.data3$classe, predict.Rf)
-out.error <- 1 - as.numeric(confusionMatrix(test.data3$classe, predictRf)$overall[1])
+out.error <- 1 - as.numeric(confusionMatrix(test.data3$classe, predict.Rf)$overall[1])
 out.error
 ```
-Accuracy of Model is good with a 99.22% and an out of sample error of 73% with 4 fold cross validation.
+Accuracy of Model is good with a 99.22% and an out of sample error of 85% which is decently low, with 5 fold cross validation.
 Going back to the initial data set testing we do a prediction:
 ```{r}
-data.final <- predict(modelRf, test.data2[, -length(names(test.data2))])
+data.final <- predict(fit.Rf2, newdata = (test.data2))
 data.final
 ```
 Plot Figures:
 ```{r}
 ## Model Variables
-rf.training=randomForest(classe~.,data=train.data3, ntree=100, importance=TRUE)
-rf.training
-varImpPlot(rf.training,)
+model <- varImp(fit.Rf2)$importance
+varImpPlot(fit.Rf2$finalModel, main = "Predictors", sort = TRUE, pch = 21, col = 1, cex =1)
 ## Decision Tree
 tree <- rpart(classe ~ ., data= train.data3, method = "class")
 predictiontree <- predict(tree, test, type="class")
@@ -137,7 +136,8 @@ pml_write_files = function(x){
 
 pml_write_files(predictions)
 ```
-Sources: Ugulino, W.; Cardador, D.; Vega, K.; Velloso, E.; Milidiu, R.; Fuks, H. Wearable Computing: Accelerometers' Data Classification of Body Postures and Movements. Proceedings of 21st Brazilian Symposium on Artificial Intelligence. Advances in Artificial Intelligence - SBIA 2012. In: Lecture Notes in Computer Science. , pp. 52-61. Curitiba, PR: Springer Berlin / Heidelberg, 2012. ISBN 978-3-642-34458-9. DOI: 10.1007/978-3-642-34459-6_6.
+Sources: 
+Ugulino, W.; Cardador, D.; Vega, K.; Velloso, E.; Milidiu, R.; Fuks, H. Wearable Computing: Accelerometers' Data Classification of Body Postures and Movements. Proceedings of 21st Brazilian Symposium on Artificial Intelligence. Advances in Artificial Intelligence - SBIA 2012. In: Lecture Notes in Computer Science. , pp. 52-61. Curitiba, PR: Springer Berlin / Heidelberg, 2012. ISBN 978-3-642-34458-9. DOI: 10.1007/978-3-642-34459-6_6.
 
 Read more: http://groupware.les.inf.puc-rio.br/har#ixzz3V12rBpJB
 
