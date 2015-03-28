@@ -1,3 +1,4 @@
+
 ---
 title: "Practical Machine Learning Assignment"
 author: "m123"
@@ -27,7 +28,9 @@ library(doParallel)
 library(rpart)
 library(rpart.plot)
 library(corrplot)
-set.seed(2345)
+library(ggplot2)
+library(lattice)
+library(knitr)
 ```
 
 Load the file data
@@ -49,55 +52,63 @@ if (!file.exists(test)) {
 
 Organize the csv files into proper data frames to read
 ```{r, echo=TRUE}
-train.data <- read.csv("./data/pml-training.csv")
-test.data <- read.csv("./data/pml-testing.csv")
+train.data <- read.csv("./data/pml-training.csv", row.names=1, na.strings = " ")
+test.data <- read.csv("./data/pml-testing.csv", row.names=1,  na.strings = "NA")
 dim(train.data)
 dim(test.data)
 ```
-Training data has 19622 observations with 160 variables. Testing data has 20 observations with 160 variables. 
+Training data has 19622 observations with 159 variables. Testing data has 20 observations with 75 variables. 
 Hence, start cleaning the data by removing 60% of NA values and remove columns with missing values. Identify the classe variable in the training set.
 
 Clean the Data by removing NA missing values
 ```{r}
-sum(complete.cases(train.data))
 train.data <- train.data[, colSums(is.na(train.data)) == 0]
 test.data <- test.data[, colSums(is.na(test.data)) == 0]
 ```
-Upon reviewing the data, we also remove columns that do not reveal much for accelerometer data and create the class variable function.
+Upon reviewing the data, we also remove columns that do not reveal much for accelerometer data and create the classe variable function.
 ```{r}
+# Remove near zero covariates that hamper prediction
+zero.co <- nearZeroVar(train.data, saveMetrics = TRUE)
+train.data <- train.data[, !zero.co$nzv]
+# Create Class function
 classe <- train.data$classe
 # delete unnecessary training data, create new set training data
-train.delete <- grepl("^X|timestamp|window", names(train.data))
-train.data <- train.data[, !train.delete]
-train.data2 <- train.data[, sapply(train.data, is.numeric)]
-train.data2$classe <- classe
+train.delete <- c("raw_timestamp.part_1", "raw_timestamp_part_2", "user_name", "cvtd_timestamp", "new_window", "num_window")
+train.data2 <- train.data[, !(names(train.data) %in% train.delete)]
 ## delete unnecessary test data, create new set test data
-test.delete <- grepl("^X|timestamp|window", names(test.data))
-test.data <- test.data[, !test.delete]
-test.data2 <- test.data[, sapply(test.data, is.numeric)]
+test.delete <- c("problem_id", "raw_timestamp.part_1", "raw_timestamp_part_2", "user_name", "cvtd_timestamp", "new_window", "num_window")
+test.data2 <- test.data[, !(names(test.data) %in% test.delete)]
+dim(train.data2)
+dim(test.data2)
 ```
-Begin process for Cross Validation by doing a data split of pure data 70% and validation data of 30%
+Train data has 19622 observations and 54 variables. Test data has 20 observations and 53 varaibles.
+Begin process for Cross Validation by doing a data split of train data 70% and validation data of 30%
 ```{r}
-inTrain <- createDataPartition(train.data2$classe, p= 0.70, list=F)
+inTrain <- createDataPartition(y=train.data2$classe, p= 0.70, list=FALSE)
 train.data3 <- train.data2[inTrain, ]
 test.data3 <- train.data2[-inTrain, ]
+dim(train.data3)
+dim(test.data3)
 ```
+Train data has 13737 observations and 54 variables. Test data has 5885 observations and 54 variables.
+
 Random Forest Modeling
-Conduct the predictive modeling by selecting the important variables to correlated covariates 
+Conduct the predictive modeling with 5 fold cross-validation.
+
 ```{r}
-library(e1071)
-controlRf <- trainControl(method="cv", 5)
-modelRf <- train(classe ~ ., data=train.data3, method="rf", trControl=controlRf, ntree=250)
-modelRf
+set.seed(2345)
+fit.Rf <- trainControl(method = "cv", 5)
+fit.Rf2 <- train(classe ~ ., data=train.data3, method="rf", trControl=fit.Rf, importance = TRUE, ntree=100)
+fit.Rf2
 ```
-Validate the data set with visualization of algorithm performance
+Validate the data set and out-of-sample error.
 ```{r}
-predictRf <- predict(modelRf, test.data3)
-confusionMatrix(test.data3$classe, predictRf)
+predict.Rf <- predict(modelRf, test.data3)
+confusionMatrix(test.data3$classe, predict.Rf)
 out.error <- 1 - as.numeric(confusionMatrix(test.data3$classe, predictRf)$overall[1])
 out.error
 ```
-Accuracy of Model is good with a 99.22% and an out of sample error of 78% with 5 fold cross validation.
+Accuracy of Model is good with a 99.22% and an out of sample error of 73% with 4 fold cross validation.
 Going back to the initial data set testing we do a prediction:
 ```{r}
 data.final <- predict(modelRf, test.data2[, -length(names(test.data2))])
@@ -106,12 +117,13 @@ data.final
 Plot Figures:
 ```{r}
 ## Model Variables
-rf.training=randomForest(classe~.,data=train.data3,ntree=100, importance=TRUE)
+rf.training=randomForest(classe~.,data=train.data3, ntree=100, importance=TRUE)
 rf.training
 varImpPlot(rf.training,)
 ## Decision Tree
 tree <- rpart(classe ~ ., data= train.data3, method = "class")
-prp(tree)
+predictiontree <- predict(tree, test, type="class")
+rpart.plot(tree, under = TRUE)
 ```
 Files to Submit Assignment
 ```{r}
@@ -125,10 +137,8 @@ pml_write_files = function(x){
 
 pml_write_files(predictions)
 ```
-Sources:
-Ugulino, W.; Cardador, D.; Vega, K.; Velloso, E.; Milidiu, R.; Fuks, H. Wearable Computing: Accelerometers' Data Classification of Body Postures and Movements. Proceedings of 21st Brazilian Symposium on Artificial Intelligence. Advances in Artificial Intelligence - SBIA 2012. In: Lecture Notes in Computer Science. , pp. 52-61. Curitiba, PR: Springer Berlin / Heidelberg, 2012. ISBN 978-3-642-34458-9. DOI: 10.1007/978-3-642-34459-6_6.
+Sources: Ugulino, W.; Cardador, D.; Vega, K.; Velloso, E.; Milidiu, R.; Fuks, H. Wearable Computing: Accelerometers' Data Classification of Body Postures and Movements. Proceedings of 21st Brazilian Symposium on Artificial Intelligence. Advances in Artificial Intelligence - SBIA 2012. In: Lecture Notes in Computer Science. , pp. 52-61. Curitiba, PR: Springer Berlin / Heidelberg, 2012. ISBN 978-3-642-34458-9. DOI: 10.1007/978-3-642-34459-6_6.
 
 Read more: http://groupware.les.inf.puc-rio.br/har#ixzz3V12rBpJB
 
-End Notes:
-Codes were produced on RStudio version 0.98.994 with a Mac OS 10.9.4 
+End Notes: Codes were produced on RStudio version 0.98.994 with a Mac OS 10.9.4 
