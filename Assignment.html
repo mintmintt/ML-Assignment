@@ -1,3 +1,206 @@
- --- title: "Practical Machine Learning Assignment" author: "m123" date: "March 21, 2015" output: html_document --- Github repo with RMarkdown: INTRODUCTION: ------------ This document represents the results from data using devices such as Jawbone Up, Nike FuelBand, and Fitbit. The goal is to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants, quantify how well they do the exercises and predict the manner in which they did it. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. Create a report to describe: 1. how the model was built 2. how cross validation was used 3. what the expected out of sample error is 4. why the choices were made. Use 20 different test cases. The following packages used include caret, randomForest, Hmisc, foreach and doParallel. ```{r} # Load libraries and set seed library(caret) library(randomForest) library(Hmisc) library(doParallel) library(rpart) library(rpart.plot) library(corrplot) library(knitr) set.seed(2345) ``` Load the file data ```{r} Url1 <-"https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv" Url2 <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv" train <- "./data/pml-training.csv" test <- "./data/pml-testing.csv" if (!file.exists("./data")) { dir.create("./data") } if (!file.exists(train)) { download.file(Url1, destfile=train, method="curl") } if (!file.exists(test)) { download.file(Url2, destfile=test, method="curl") } ``` Organize the csv files into proper data frames to read ```{r, echo=TRUE} train.data <- read.csv("./data/pml-training.csv") test.data <- read.csv("./data/pml-testing.csv") dim(train.data) dim(test.data) ``` Training data has 19622 observations with 160 variables. Testing data has 20 observations with 160 variables. Hence, start cleaning the data by removing 60% of NA values and remove columns with missing values. Identify the classe variable in the training set. Clean the Data by removing NA missing values ```{r} sum(complete.cases(train.data)) train.data <- train.data[, colSums(is.na(train.data)) == 0] test.data <- test.data[, colSums(is.na(test.data)) == 0] ``` Upon reviewing the data, we also remove columns that do not reveal much for accelerometer data and create the class variable function. ```{r} classe <- train.data$classe # delete unnecessary training data, create new set training data train.delete <- grepl("^X|timestamp|window", names(train.data)) train.data <- train.data[, !train.delete] train.data2 <- train.data[, sapply(train.data, is.numeric)] train.data2$classe <- classe ## delete unnecessary test data, create new set test data test.delete <- grepl("^X|timestamp|window", names(test.data)) test.data <- test.data[, !test.delete] test.data2 <- test.data[, sapply(test.data, is.numeric)] ``` Begin process for Cross Validation by doing a data split of pure data 70% and validation data of 30% ```{r} inTrain <- createDataPartition(train.data2$classe, p= 0.70, list=F) train.data3 <- train.data2[inTrain, ] test.data3 <- train.data2[-inTrain, ] ``` Random Forest Modeling Conduct the predictive modeling by selecting the important variables to correlated covariates ```{r} library(e1071) controlRf <- trainControl(method="cv", 5) modelRf <- train(classe ~ ., data=train.data3, method="rf", trControl=controlRf, ntree=250) modelRf ``` Validate the data set with visualization of algorithm performance ```{r} predictRf <- predict(modelRf, test.data3) confusionMatrix(test.data3$classe, predictRf) out.error <- 1 - as.numeric(confusionMatrix(test.data3$classe, predictRf)$overall[1]) out.error ``` Accuracy of Model is good with a 99.22% and an out of sample error of 78% with 5 fold cross validation. Going back to the initial data set testing we do a prediction: ```{r} data.final <- predict(modelRf, test.data2[, -length(names(test.data2))]) data.final ``` Plot Figures: ```{r} ## Model Variables rf.training=randomForest(classe~.,data=train.data3,ntree=100, importance=TRUE) rf.training varImpPlot(rf.training,) ## Decision Tree tree <- rpart(classe ~ ., data= train.data3, method = "class") prp(tree) ``` Files to Submit Assignment ```{r} pml_write_files = function(x){ n = length(x) for(i in 1:n){ filename = paste0("./answers/problem_id_",i,".txt") write.table(x[i],file=filename,quote=FALSE,row.names=FALSE,col.names=FALSE) } } pml_write_files(predictions) ``` 
- 
- 
+Practical Machine Learning Assignment
+m123
+
+March 21, 2015
+
+Github repo with RMarkdown:
+
+INTRODUCTION:
+This document represents the results from data using devices such as Jawbone Up, Nike FuelBand, and Fitbit. The goal is to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants, quantify how well they do the exercises and predict the manner in which they did it. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways.
+
+Create a report to describe: 1. how the model was built 2. how cross validation was used 3. what the expected out of sample error is 4. why the choices were made.
+
+Use 20 different test cases. The following packages used include caret, randomForest, Hmisc, foreach and doParallel.
+
+# Load libraries and set seed
+library(caret)
+## Loading required package: lattice
+## Loading required package: ggplot2
+## Warning: package 'ggplot2' was built under R version 3.1.3
+library(randomForest)
+## randomForest 4.6-10
+## Type rfNews() to see new features/changes/bug fixes.
+library(Hmisc)
+## Loading required package: grid
+## Loading required package: survival
+## Loading required package: splines
+## 
+## Attaching package: 'survival'
+## 
+## The following object is masked from 'package:caret':
+## 
+##     cluster
+## 
+## Loading required package: Formula
+## 
+## Attaching package: 'Hmisc'
+## 
+## The following object is masked from 'package:randomForest':
+## 
+##     combine
+## 
+## The following objects are masked from 'package:base':
+## 
+##     format.pval, round.POSIXt, trunc.POSIXt, units
+library(doParallel)
+## Loading required package: foreach
+## Loading required package: iterators
+## Loading required package: parallel
+library(rpart)
+library(rpart.plot)
+library(corrplot)
+library(ggplot2)
+library(lattice)
+library(knitr)
+Load the file data
+
+Url1 <-"https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+Url2 <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+train <- "./data/pml-training.csv"
+test  <- "./data/pml-testing.csv"
+if (!file.exists("./data")) {
+  dir.create("./data")
+}
+if (!file.exists(train)) {
+  download.file(Url1, destfile=train, method="curl")
+}
+if (!file.exists(test)) {
+  download.file(Url2, destfile=test, method="curl")
+}      
+Organize the csv files into proper data frames to read
+
+train.data <- read.csv("./data/pml-training.csv", row.names=1, na.strings = " ")
+test.data <- read.csv("./data/pml-testing.csv", row.names=1,  na.strings = "NA")
+dim(train.data)
+## [1] 19622   159
+dim(test.data)
+## [1]  20 159
+Training data has 19622 observations with 159 variables. Testing data has 20 observations with 159 variables. Hence, start cleaning the data by removing 60% of NA values and remove columns with missing values. Identify the classe variable in the training set.
+
+Clean the Data by removing NA missing values
+
+train.data <- train.data[, colSums(is.na(train.data)) == 0]
+test.data <- test.data[, colSums(is.na(test.data)) == 0]
+Upon reviewing the data, we also remove columns that do not reveal much for accelerometer data and create the classe variable function.
+
+# Remove near zero covariates that hamper prediction
+zero.co <- nearZeroVar(train.data, saveMetrics = TRUE)
+train.data <- train.data[, !zero.co$nzv]
+# Create Class function
+classe <- train.data$classe
+# delete unnecessary training data, create new set training data
+train.delete <- c("raw_timestamp.part_1", "raw_timestamp_part_2", "user_name", "cvtd_timestamp", "new_window", "num_window")
+train.data2 <- train.data[, !(names(train.data) %in% train.delete)]
+## delete unnecessary test data, create new set test data
+test.delete <- c("problem_id", "raw_timestamp.part_1", "raw_timestamp_part_2", "user_name", "cvtd_timestamp", "new_window", "num_window")
+test.data2 <- test.data[, !(names(test.data) %in% test.delete)]
+dim(train.data2)
+## [1] 19622    54
+dim(test.data2)
+## [1] 20 53
+Train data2 has 19622 observations and 54 variables. Test data2 has 20 observations and 53 variables. Begin process for Cross Validation by doing a data split of train data 70% and validation data of 30%
+
+inTrain <- createDataPartition(y=train.data2$classe, p= 0.70, list=FALSE)
+train.data3 <- train.data2[inTrain, ]
+test.data3 <- train.data2[-inTrain, ]
+dim(train.data3)
+## [1] 13737    54
+dim(test.data3)
+## [1] 5885   54
+Train data3 has 13737 observations and 54 variables. Test data has 5885 observations and 54 variables.
+
+Random Forest Modeling Conduct the predictive modeling with 5 fold cross-validation.
+
+set.seed(2345)
+fit.Rf <- trainControl(method = "cv", 5)
+fit.Rf2 <- train(classe ~ ., data=train.data3, method="rf", trControl=fit.Rf, importance = TRUE, ntree=100)
+fit.Rf2
+## Random Forest 
+## 
+## 13737 samples
+##    53 predictor
+##     5 classes: 'A', 'B', 'C', 'D', 'E' 
+## 
+## No pre-processing
+## Resampling: Cross-Validated (5 fold) 
+## 
+## Summary of sample sizes: 10990, 10990, 10989, 10989, 10990 
+## 
+## Resampling results across tuning parameters:
+## 
+##   mtry  Accuracy   Kappa      Accuracy SD   Kappa SD   
+##    2    0.9930845  0.9912519  0.0016272525  0.002058458
+##   27    0.9973066  0.9965934  0.0009132314  0.001154884
+##   53    0.9939579  0.9923572  0.0015139628  0.001914991
+## 
+## Accuracy was used to select the optimal model using  the largest value.
+## The final value used for the model was mtry = 27.
+Validate the data set and out-of-sample error.
+
+predict.Rf <- predict(fit.Rf2, test.data3)
+confusionMatrix(test.data3$classe, predict.Rf)
+## Confusion Matrix and Statistics
+## 
+##           Reference
+## Prediction    A    B    C    D    E
+##          A 1673    1    0    0    0
+##          B    1 1133    5    0    0
+##          C    0    3 1020    3    0
+##          D    0    0    0  964    0
+##          E    0    0    0    2 1080
+## 
+## Overall Statistics
+##                                           
+##                Accuracy : 0.9975          
+##                  95% CI : (0.9958, 0.9986)
+##     No Information Rate : 0.2845          
+##     P-Value [Acc > NIR] : < 2.2e-16       
+##                                           
+##                   Kappa : 0.9968          
+##  Mcnemar's Test P-Value : NA              
+## 
+## Statistics by Class:
+## 
+##                      Class: A Class: B Class: C Class: D Class: E
+## Sensitivity            0.9994   0.9965   0.9951   0.9948   1.0000
+## Specificity            0.9998   0.9987   0.9988   1.0000   0.9996
+## Pos Pred Value         0.9994   0.9947   0.9942   1.0000   0.9982
+## Neg Pred Value         0.9998   0.9992   0.9990   0.9990   1.0000
+## Prevalence             0.2845   0.1932   0.1742   0.1647   0.1835
+## Detection Rate         0.2843   0.1925   0.1733   0.1638   0.1835
+## Detection Prevalence   0.2845   0.1935   0.1743   0.1638   0.1839
+## Balanced Accuracy      0.9996   0.9976   0.9969   0.9974   0.9998
+out.error <- 1 - as.numeric(confusionMatrix(test.data3$classe, predict.Rf)$overall[1])
+out.error
+## [1] 0.002548853
+Accuracy of Model is good with a 99.22% and an out of sample error of 85% which is decently low, with 5 fold cross validation. Going back to the initial data set testing we do a prediction:
+
+data.final <- predict(fit.Rf2, newdata = (test.data2))
+data.final
+##  [1] B A B A A E D B A A B C B A E E A B B B
+## Levels: A B C D E
+Plot Figures:
+
+## Model Variables
+model <- varImp(fit.Rf2)$importance
+varImpPlot(fit.Rf2$finalModel, main = "Predictors", sort = TRUE, pch = 21, col = 1, cex =1)
+
+
+## Decision Tree
+tree <- rpart(classe ~ ., data= train.data3, method = "class")
+prp(tree)
+
+
+Prediction for submission:
+
+write.files = function(x){
+  n = length(x)
+  for(i in 1:n){
+    filename = paste0("./problem_id_", i, ".txt")
+    write.table(x[i], file = filename, quote = FALSE, row.names = FALSE, col.names = FALSE)
+  }
+}
+write.files(predict.Rf)
+Sources: Ugulino, W.; Cardador, D.; Vega, K.; Velloso, E.; Milidiu, R.; Fuks, H. Wearable Computing: Accelerometers’ Data Classification of Body Postures and Movements. Proceedings of 21st Brazilian Symposium on Artificial Intelligence. Advances in Artificial Intelligence - SBIA 2012. In: Lecture Notes in Computer Science. , pp. 52-61. Curitiba, PR: Springer Berlin / Heidelberg, 2012. ISBN 978-3-642-34458-9. DOI: 10.1007/978-3-642-34459-6_6.
+
+Read more: http://groupware.les.inf.puc-rio.br/har#ixzz3V12rBpJB
